@@ -1,0 +1,6 @@
+name = OMA Navigation
+description = "Handles custom navigation for the OMA App"
+core = 7.x
+package = Premier
+
+files[] = oma_navigation.module

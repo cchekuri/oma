@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Continuum Of Care Application feature.
+ */
+
+include_once 'continuum_of_care_application.features.inc';

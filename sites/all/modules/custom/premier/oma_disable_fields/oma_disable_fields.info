@@ -1,0 +1,7 @@
+name = OMA Disable Fields
+description = "Very Simple module to disable title and node reference fields on Application Forms"
+core = 7.x
+package = Premier
+
+files[] = oma_disable_fields.module
+stylesheets[all][] = oma_disable_fields.css

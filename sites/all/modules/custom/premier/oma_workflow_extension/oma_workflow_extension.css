@@ -1,0 +1,13 @@
+/* Application Form */
+
+/* Save Button */
+form.node-continuum_of_care_application-form button[value="Save"],
+.field-name-field-workflow-state button[value="Save"] { display: none; }
+
+/* Sponsor Edit */
+form.node-continuum_of_care_application-form.has_role_sponsor.sponsor_editing button[value="Save"] { display: inline-block; }
+form.node-continuum_of_care_application-form.view-only.has_role_sponsor.sponsor_editing button[value="Save"] { display: none; }
+
+/* Member Edit */
+form.node-continuum_of_care_application-form.has_role_prospective_member.prospective_member_editing button[value="Save"] { display: inline-block; }
+form.node-continuum_of_care_application-form.view-only.has_role_prospective_member.prospective_member_editing button[value="Save"] { display: none; }

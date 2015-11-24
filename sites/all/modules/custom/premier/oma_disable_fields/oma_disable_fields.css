@@ -1,0 +1,9 @@
+/*body.page-node-add-sponsor-information .field-name-field-master-application-node-id,
+body.page-node-add-member-information .field-name-field-master-application-node-id,
+body.page-node-add-pharmacy-program-requirements .field-name-field-master-application-node-id {
+  display: none;
+}*/
+
+body.page-node-add .bootstrap-tabs-processed {
+  display: none;
+}

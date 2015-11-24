@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Continuum of Care Workflow feature.
+ */
+
+include_once 'continuum_of_care_workflow.features.inc';

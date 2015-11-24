@@ -1,0 +1,8 @@
+name = OMA Feeds Extension
+description = "Custom override for membership signup forms"
+core = 7.x
+package = Premier
+
+dependencies[] = devel
+
+files[] = oma_feeds_extension.module

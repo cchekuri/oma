@@ -1,0 +1,8 @@
+name = OMA Views
+description = "Holds the view code - to use setup your view in views then export and paste it into the appropriate file in this module."
+core = 7.x
+package = Premier
+
+dependencies[] = views
+
+files[] = oma_views.module

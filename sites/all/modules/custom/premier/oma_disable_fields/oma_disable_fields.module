@@ -1,0 +1,26 @@
+<?php
+
+/**
+ * Implements hook_form_alter().
+ *
+ * Use this hook to alter the form.
+ * It is only suited if you only use View Page or Workflow Tab.
+ * If you change the state on the Node Form (Edit modus), you need the hook
+ * hook_form_alter(). See below for more info.
+ */
+function oma_disable_fields_form_alter(&$form, &$form_state, $form_id) {
+global $user;
+
+  switch ($form_id) {    
+    case 'sponsor_information_node_form':
+    case 'member_information_node_form':
+    case 'membership_classification_node_form':
+    case 'pharmacy_program_requirements_node_form':    
+    case 'facility_authorization_node_form':
+    case 'contact_profile_node_form':
+    case 'child_site_node_form':
+      $form['title']['#attributes']['disabled'] = TRUE;
+      $form['field_master_application_node_id']['und']['0']['nid']['#attributes']['disabled'] = TRUE;
+      break;    
+  };
+}

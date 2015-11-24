@@ -1,0 +1,8 @@
+name = OMA Sponsor Autofill
+description = "Code to autofill the sponsor part of the application."
+core = 7.x
+package = Premier
+
+dependencies[] = sponsor_information
+
+files[] = oma_sponsor_autofill.module

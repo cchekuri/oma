@@ -1,0 +1,83 @@
+<?php
+
+/**
+ * Implements hook_form_alter().
+ * 
+ * Makes our master container node reference field read only.
+ * Handles the next and previous links.
+ */
+function oma_sponsor_autofill_form_alter(&$form, &$form_state, $form_id) {
+
+  global $user;
+
+  $full_profile = user_load($user->uid);
+
+  if($form_id == 'sponsor_information_node_form' && in_array('sponsor', $user->roles)) {
+
+    $lang = $form['language']['#value'];
+
+
+    // If we have a value in the profile, use it in the form field if the form field is currently empty.
+    if(!empty($full_profile->field_sponsoring_premier_owner_p))
+      $form['field_sponsoring_premier_owner_p'][$lang][0]['value']['#default_value'] = empty($form['field_sponsoring_premier_owner_p'][$lang][0]['value']['#default_value']) ? $full_profile->field_sponsoring_premier_owner_p[$lang][0]['safe_value'] : $form['field_sponsoring_premier_owner_p'][$lang][0]['value']['#default_value'];
+
+
+
+    if(!empty($full_profile->field_sponsor_entity_code))
+      $form['field_sponsor_entity_code'][$lang][0]['value']['#default_value'] = empty($form['field_sponsor_entity_code'][$lang][0]['value']['#default_value']) ? $full_profile->field_sponsor_entity_code[$lang][0]['safe_value'] : $form['field_sponsor_entity_code'][$lang][0]['value']['#default_value'];
+
+
+
+    if(!empty($full_profile->field_sponsor_contact_name))
+      $form['field_sponsor_contact_name'][$lang][0]['value']['#default_value'] = empty($form['field_sponsor_contact_name'][$lang][0]['value']['#default_value']) ? $full_profile->field_sponsor_contact_name[$lang][0]['safe_value'] : $form['field_sponsor_contact_name'][$lang][0]['value']['#default_value'];
+
+
+    if(!empty($full_profile->field_sponsor_contact_phone_numb))
+      $form['field_sponsor_contact_phone_numb'][$lang][0]['value']['#default_value'] = empty($form['field_sponsor_contact_phone_numb'][$lang][0]['value']['#default_value']) ? $full_profile->field_sponsor_contact_phone_numb[$lang][0]['value'] : $form['field_sponsor_contact_phone_numb'][$lang][0]['value']['#default_value'];
+
+
+    if(!empty($full_profile->field_sponsor_contact_email))
+      $form['field_sponsor_contact_email'][$lang][0]['email']['#default_value'] = empty($form['field_sponsor_contact_email'][$lang][0]['email']['#default_value']) ? $full_profile->field_sponsor_contact_email[$lang][0]['email'] : $form['field_sponsor_contact_email'][$lang][0]['email']['#default_value'];
+
+
+    if(!empty($full_profile->field_direct_parent_name1))
+      $form['field_direct_parent_name1'][$lang][0]['value']['#default_value'] = empty($form['field_direct_parent_name1'][$lang][0]['value']['#default_value']) ? $full_profile->field_direct_parent_name1[$lang][0]['safe_value'] : $form['field_direct_parent_name1'][$lang][0]['value']['#default_value'];
+
+
+    if(!empty($full_profile->field_direct_parent_entity_code))
+      $form['field_direct_parent_entity_code'][$lang][0]['value']['#default_value'] = empty($form['field_direct_parent_entity_code'][$lang][0]['value']['#default_value']) ? $full_profile->field_direct_parent_entity_code[$lang][0]['safe_value'] : $form['field_direct_parent_entity_code'][$lang][0]['value']['#default_value'];
+
+
+    if(!empty($full_profile->field_prospective_member_relatio))
+      $form['field_prospective_member_relatio'][$lang]['#default_value'] = empty($form['field_prospective_member_relatio'][$lang]['#default_value']) ? $full_profile->field_prospective_member_relatio[$lang][0]['value'] : $form['field_prospective_member_relatio'][$lang]['#default_value'];
+
+  }
+
+}
+
+
+function oma_sponsor_autofill_set_value($field, $type) {
+
+global $user;
+
+  $full_profile = user_load($user->uid);
+
+  switch($type) {
+    case 'text': 
+      $form_field = $form[$field][$lang][0]['value']['#default_value'];
+      $profile_field = $full_profile->$field[$lang][0]['safe_value'];
+      break;
+    case 'email':
+
+
+
+  }
+
+
+
+
+  if(empty($form['field_sponsoring_premier_owner_p'][$lang][0]['value']['#default_value']) && !empty($full_profile->field_sponsoring_premier_owner_p))
+    $form['field_sponsoring_premier_owner_p'][$lang][0]['value']['#default_value'] = $full_profile->field_sponsoring_premier_owner_p[$lang][0]['safe_value'];
+
+
+}

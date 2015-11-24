@@ -1,0 +1,653 @@
+<?php
+
+
+ /**
+   *  Implements hook_menu()
+   */
+function oma_workflow_extension_menu() {
+
+  $items['oma_workflow_extension/%ctools_js'] = array(
+    'page callback' => 'oma_workflow_extension_callback',
+    'page arguments' => array(1),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Helper function to make a link, styled like a button, to add a new applicant.
+ */
+function _oma_workflow_extension_make_link() {
+  // Set a default value if no text in supplied.
+  $link_text = t('Add Additional Applicant');
+
+  // Grab our container nid so we can pass it into the form - if we don't have one we'll return a false 
+  $container_nid = _oma_workflow_extension_block_validate_node_type();
+
+  return '<div id="prospective-member-email-link">' . l($link_text, 'oma_workflow_extension/nojs/' . $container_nid, array('attributes' => array('class' => 'ctools-use-modal btn btn-default'))) . '</div>';
+}        
+
+/**
+ * Callback to open additional applicant modal
+ */
+function oma_workflow_extension_callback($ajax, $container_nid) {
+  if ($ajax) {
+    ctools_include('ajax');
+    ctools_include('modal');
+
+    $form_state = array(
+      'ajax' => TRUE,
+      'title' => t('Add Additional Applicant'),
+      'build_info' => array(
+        'args' => array(
+          'container_nid' => $container_nid
+          )
+        ),
+      );
+
+    // Use ctools to generate ajax instructions for the browser to create
+    // a form in a modal popup.
+    $output = ctools_modal_form_wrapper('oma_workflow_extension_form', $form_state);
+
+    // If the form has been submitted, there may be additional instructions
+    // such as dismissing the modal popup.
+    if (!empty($form_state['ajax_commands'])) {
+      $output = $form_state['ajax_commands'];
+    }
+
+    // Return the ajax instructions to the browser via ajax_render().
+    print ajax_render($output);
+    drupal_exit();
+  }
+  else {
+    return drupal_get_form('oma_workflow_extension_form', $container_nid);
+  }
+}
+
+
+/**
+ * Implementation of hook_block_info
+ * Create a workflow block that will display the workflow state and controls for advancing through the workflow
+ */
+function oma_workflow_extension_block_info() {
+  $blocks = array();
+
+  $blocks['workflow_management'] = array(
+    'info' => t('Workflow Management'),
+  );
+  $blocks['applicants'] = array(
+    'info' => t('Applicants'),
+  );
+
+  return $blocks;
+}
+
+/**
+* Implements hook_block_view().
+*/
+function oma_workflow_extension_block_view($delta = '') {
+  $block = array();
+  switch ($delta) {
+    case 'applicants':
+      $container_nid = _oma_workflow_extension_block_validate_node_type();
+      if($container_nid) {
+        $block['subject'] = t('Access List');
+        $block['content'] = _oma_workflow_extension_applicant_block_content($container_nid);        
+      }
+
+      break;
+
+    case 'workflow_management':
+      $container_nid = _oma_workflow_extension_block_validate_node_type();
+      if($container_nid) {
+        $block['subject'] = t('Status');
+        $block['content'] = _oma_workflow_extension_workflow_management_block_content($container_nid);        
+      }
+
+      break;
+  }
+  return $block;
+}
+
+
+/**
+* Implements hook_block_view().
+*/
+function _oma_workflow_extension_workflow_management_block_content($container_nid) {
+  $output = _oma_workflow_extension_block_render_current_workflow($container_nid);
+
+  return $output;
+}
+
+
+/**
+ * Helper function to render applicant block content
+ */
+function _oma_workflow_extension_applicant_block_content($container_nid) {
+  ctools_include('modal');
+  ctools_modal_add_js();
+
+  $output = _oma_workflow_extension_render_access_list($container_nid);
+  return $output;
+}
+
+/**
+ * Helper function to render nodeaccess grantees list in a div - we give it an id so we can update it with our AJAX callbacks.
+ */
+function _oma_workflow_extension_render_access_list($container_nid) {
+  $container_node = node_load($container_nid);
+  $applicants = _oma_workflow_extension_sort_applicants($container_nid);
+
+  $output = "<div id='access-list-div'>";
+  $output .= _oma_workflow_extension_render_grantees('author', $applicants, $container_node->title);
+  $output .= _oma_workflow_extension_render_grantees('applicants', $applicants, $container_node->title);
+  $output .= _oma_workflow_extension_make_link();
+  $output .= "</div>";
+
+  return $output;
+
+}
+
+/**
+ * Implements hook_mail()
+ * @param 
+ *   type $key to decide which email body to sent on basis of key parameter inacese of multiple email content
+ * @param 
+ *   type $message the email content to be sent.Message array contains 'subject and body ' for the email.
+ * @param 
+ *   type $params using to get the cusotm email content from a function.This can be used in my other ways aslo as per need.
+ */
+function oma_workflow_extension_mail($key, &$message, $params) {
+  $language = $message['language'];
+
+  switch ($key) {
+    case 'added_user':
+      $message['subject'] = t('Your Premier inc. Membership Application');
+      $message['body'][] = $params['body'];
+      break;
+  }
+}
+
+/**
+ * function to get the html formatted email content
+ * @param 
+ *   type $form_state to get values from form fields.
+ * @return 
+ *   $body type string return the html email content 
+ */
+function oma_workflow_extension_get_mail_content($form_state) { 
+  $body = 'You have been added as an applicant to a Premer Inc. membership application.  blah blah blah blah';
+  return $body;
+}
+
+/**
+ * Helper function to render all nodeaccess grants in pretty list.
+ */
+function _oma_workflow_extension_render_grantees($type = '', $applicants, $mail_subject = '') {
+
+  $html = "";
+
+  if($type) {
+
+    $cclist = "";
+    foreach($applicants as $applicant_type) {
+      foreach($applicant_type as $applicant) {
+        $cclist .= $applicant->mail . ';';
+      }
+    }
+
+    // Prints the type name with the first letter uppercase;
+    if(isset($applicants[$type])) {
+      if(count($applicants[$type]) > 0)
+        $html = ucfirst($type);
+      // Starts an unordered list
+      $html .= "<ul>";
+      foreach($applicants[$type] as $applicant) {
+        // Create a mail to link of the applicant's name
+        $mail_link = l($applicant->name, 'mailto:' . $applicant->mail . '?subject=Premier Inc. Membership ' . $mail_subject . '&cc=' . $cclist, array('absolute' => TRUE));      
+        $html .= "<li>" . $mail_link . "</li>";
+      }      
+    }
+    $html .= "</ul>";
+  }
+
+  return $html;
+
+}
+
+/**
+ * Helper function to get all nodeaccess grants related to nid
+ */
+function _oma_workflow_extension_get_applicants($container_nid) {
+
+  $query = db_select('node_access','n')
+    ->fields('n',array('nid', 'gid','realm','grant_view','grant_update','grant_delete'))
+    ->condition('n.grant_update',1,'=')
+    ->condition('n.nid',$container_nid,'=');
+
+  $applicants = $query
+    ->execute()
+    ->fetchAll();
+
+    return $applicants;
+
+}
+
+/**
+ * Helper function to get and sort the nodeaccess grantees into two lists, author and applicants.  Nodeaccess also provides us with grants by role (realm = nodeaccess_rid), but we do not use them, so ignoring.
+ */
+function _oma_workflow_extension_sort_applicants($container_nid) {
+
+  $applicants = _oma_workflow_extension_get_applicants($container_nid);
+
+  foreach($applicants as $applicant) {
+
+    switch($applicant->realm) {
+      case 'nodeaccess_uid':
+        $current_applicant=user_load($applicant->gid);
+        // We don't need to be passing around the user password - even though it is hashed and salted - so let's clear it then pass the rest of the user object
+        unset($current_applicant->pass);
+        $applicant_list['applicants'][] = $current_applicant;      
+        break;
+      case 'nodeaccess_author':
+        $current_applicant=user_load($applicant->gid);
+        // We don't need to be passing around the user password - even though it is hashed and salted - so let's clear it then pass the rest of the user object
+        unset($current_applicant->pass);
+        $applicant_list['author'][] = $current_applicant;      
+        break;
+    }
+
+  }
+
+  return $applicant_list;
+}
+
+/**
+ * Implementation of menu_local_tasks_alter
+ *
+ * TODO: Alters the grantee tab link so that it takes the user to the grantees tab for the container node and returns them on an update to the node that they were.  No-one
+ * except dev and qa will have access to the grantees tab - this function can be stripped out in live production.
+ */
+function oma_workflow_extension_menu_local_tasks_alter(&$data, $router_item, $root_path) {
+
+  if(strpos($root_path, 'node/%') !== false) {
+
+    // let's update our node grant tab to point to the master container instead of the grants for the current node.
+    foreach($data['tabs'][0]['output'] as $key=>$tab) {
+      if($tab['#link']['path'] == 'node/%/grant') {
+
+        // check if we have a node relating to a container, if so, change our grants tab
+        $container_nid = _oma_workflow_extension_block_validate_node_type();
+
+        if($container_nid != false) {
+          $data['tabs'][0]['output'][$key]['#link']['href'] = 'node/'. $container_nid .'/grant'; 
+          $data['tabs'][0]['output'][$key]['#link']['localized_options']['query'] = drupal_get_destination();
+          $data['tabs'][0]['output'][$key]['#link']['localized_options']['html'] = TRUE;
+        }
+
+      } 
+    }
+  }
+
+}
+
+/**
+ * Helper function that can be called to try and get the container node id.  It searches the URL querystring for a nid and if it finds one, searches for a related container node.  It returns either the container node nid or false.
+ */
+function _oma_workflow_extension_block_validate_node_type() {
+
+  $returnval = false ;
+
+  if(arg(0) == 'node' || arg(0) == 'application') {
+
+    $container_node_nid = "";
+
+    // If we're dealing with a node, grab the nid and load the node into our $node variable
+    if(arg(0) == 'node') {
+      $nid = arg(1);
+      $node = node_load($nid);
+
+      // If this is a node with a reference to a container node, set the container node ID
+      if(isset($node->field_master_application_node_id)) {
+        $container_node_nid = $node->field_master_application_node_id[$node->language][0]['nid'];
+      }
+
+      // If this is a container node set the container node ID
+      if($node->type == 'continuum_of_care') {
+        $container_node_nid = arg(1);        
+      }
+
+    // If this is a URL of structure /application/<route>/<page>/<container id>, set the container node ID
+    } else {
+      $container_node_nid = arg(3);
+    }
+
+    // Set our return value from false to the container node id
+    $returnval = $container_node_nid;
+
+  }
+
+  return $returnval;
+
+}
+
+/**
+ * Helper function to render the workflow block content.
+ */
+function _oma_workflow_extension_block_render_current_workflow($container_node_nid) {
+  $container_node = node_load($container_node_nid);
+  $nodeView = node_view($container_node, 'full'); 
+  $output = render($nodeView['field_workflow_state']);
+
+  return $output;
+}
+
+
+/**
+ * Implements hook_workflow().
+ *
+ * TODO: This is currently just a placeholder to feedback a message to the user when a workflow transitions - held off for exact messages before implementing fully.
+ */
+function oma_workflow_extension_workflow($op, $old_sid, $sid, $node) {
+
+  switch ($op) {
+    case "transition pre":
+      $workflow =  workflow_state_load_single($sid);
+      $old_workflow =  workflow_state_load_single($old_sid);
+
+      // If our state machine name contains 'sponsor_editing' and our new state machine name comtains 'prospective_member_editing' pop a modal asking for prospective member email address and perform nodeaccess grants.
+      if(strpos($old_workflow->name, 'sponsor_editing') !== false) {
+        if(strpos($workflow->name, 'prospective_member_editing') !== false) {
+          drupal_set_message("Workflow transition successful!");
+        }
+
+      }
+
+      break;
+  }
+}
+
+/**
+ * Implements hook_form().
+ *
+ * Creates our add prospective member email address form.
+ */
+function oma_workflow_extension_form($form, &$form_state) {
+  $form = array();
+
+  $form['prospective_member_email'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Email address'),
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+    '#submit' => array('oma_workflow_extension_add_applicant_form_submit'),
+
+  );
+
+//  $form['#validate'] = array('oma_workflow_extension_form_validation');
+
+  return $form;
+}
+
+
+/**
+ * validation function for custom form
+ * check for vadlidation for email address.
+ * @param type $form
+ * @param type $form_state 
+ */
+function oma_workflow_extension_form_validation($form, &$form_state) {
+
+  // validate that this is a current user... if not, then create a new user.
+}
+
+/**
+ * Implements hook_form_submit().
+ *
+ * Drupal form submit handler.
+ */
+function oma_workflow_extension_add_applicant_form_submit(&$form, &$form_state) {
+
+  $nid = $form_state['build_info']['args']['container_nid'];
+
+  if($nid != false) {
+
+    $container_node = node_load($nid);
+    $email = $form_state['values']['prospective_member_email'];
+    $user = user_load_by_mail($email);
+
+    if($user != false) {
+        _oma_workflow_extension_grant_node_access($user, $nid); 
+        _oma_workflow_extension_add_to_membership_email_address_form($user, $nid);
+        _oma_workflow_extension_handle_applicant_email($form_state);
+    }
+
+    // Tell the browser to close the modal.
+    $form_state['ajax_commands'][] = ctools_modal_command_dismiss();
+
+    // TODO Validation - check if user exists with that email address.
+    // if not, create user with that email address
+    // then grant access to node for user with that email address.
+
+
+    // Tell the browser to replace the old link with the new one.
+    $new_access_list_output = _oma_workflow_extension_render_access_list($nid);
+    $new_workflow_status = _oma_workflow_extension_block_render_current_workflow($nid);
+
+    $form_state['ajax_commands'][] = ajax_command_replace('#access-list-div', $new_access_list_output);
+
+  };
+}        
+
+
+
+function _oma_workflow_extension_add_to_membership_email_address_form($user, $container_nid) {
+  $container_node = node_load($container_nid);
+  $obj = entity_metadata_wrapper('node', $container_node);
+  $obj->field_prospective_member_email_a[] = $user->mail;
+  $obj->save();
+}
+
+
+/*
+ * Helper function to retrieve all nodes (including container) related to a container nid.  Returns an array of nids or false.
+ */
+function _oma_workflow_extension_get_all_related_nodes($container_nid) {
+
+  $query = db_select('field_data_field_master_application_node_id','c')
+    ->fields('c',array('entity_id'))
+    ->condition('c.entity_type','node','=')
+    ->condition('c.deleted',0,'=')
+    ->condition('c.field_master_application_node_id_nid',$container_nid,'=');
+
+  $nids = $query
+    ->execute()
+    ->fetchAll();
+
+    $returnval[] = $container_nid;
+
+    foreach($nids as $nid) {
+      $returnval[] = $nid->entity_id;
+    }
+
+
+
+    return $returnval;
+
+}
+
+
+/*
+ * Custom helper to grant a user access to all nodes based on the container node nid
+ */
+function _oma_workflow_extension_grant_node_access($user, $nid) {
+
+  $grants = array();
+
+  $nids = _oma_workflow_extension_get_all_related_nodes($nid);
+
+  // set node access for container and each related node
+  foreach($nids as $nid) {
+    $node = node_load($nid);
+    $nodeaccess_form_values = _nodeaccess_get_grants($node);
+    $nodeaccess_form_values['uid'][$user->uid] = array(
+      'name' => $user->name,
+      'keep' => 1,
+      'grant_view' => 1,
+      'grant_update' => 1,
+      'grant_delete' => 0,
+    );
+
+    $nodeaccess_form_values['nid'] = $nid;
+    $nodeaccess_form_state = array('values' => $nodeaccess_form_values);
+
+    _nodeaccess_grants_form_submit(NULL, $nodeaccess_form_state);
+  }
+
+
+}
+
+/*
+ * Custom helper to handle the email after a new applicant has been added
+ */
+function _oma_workflow_extension_handle_applicant_email($form_state) {
+    $email_content = oma_workflow_extension_get_mail_content($form_state);
+    $params = array('body' => $email_content);
+    $key = 'added_user';
+    $to = $form_state['values']['prospective_member_email'];
+
+    $mail = drupal_mail('oma_workflow_extension', $key, $to, language_default(), $params);
+}
+
+/**
+ * Implements hook_form_alter().
+ *
+ * The following snippets are to disable the save button on the workflow transition form.
+ */
+function oma_workflow_extension_form_alter(&$form, &$form_state, $form_id) {
+
+  global $user;
+
+  // Set some CSS classes based on the workflow state
+  if(strpos($form_id, 'workflow_transition_form_node') !== false) {
+
+    $node = node_load(arg(1)); 
+    $sid = workflow_node_current_state($node);
+    $state = workflow_get_sid_label($sid);
+
+    $container_nid = _oma_workflow_extension_block_validate_node_type();
+
+    $form['hidden']['master_nid'] = array(
+      '#type' => 'hidden',
+      '#default_value' => $container_nid,
+    );
+
+    $form['#validate'][] = 'oma_workflow_extension_form_workflow_transition_validate';
+
+    $form['#attributes']['class'][] = "node-continuum_of_care_application-form view-only " . $state; 
+    foreach($user->roles as $role) {
+      $form['#attributes']['class'][] = "has_role_" . $role;
+    }
+  }
+
+  switch($form_id) {
+    case 'continuum_of_care_node_form': 
+      $nid = arg(1);
+      break;
+
+    case 'sponsor_information_node_form':
+    case 'member_information_node_form':
+    case 'membership_classification_node_form':
+    case 'facility_authorization_node_form':  
+    case 'contact_profile_node_form':
+      $nid = _oma_workflow_extension_block_validate_node_type();
+      break;
+  }
+
+  if($nid) {
+    $node = node_load($nid); 
+    $workflow = workflow_load('continuum_of_care_workflow');
+    $sid = workflow_node_current_state($node);
+    $workflow_state = $workflow->states[$sid];
+
+    $form['#attributes']['class'][] = $workflow_state->name;
+    foreach($user->roles as $role) {
+      $form['#attributes']['class'][] = "has_role_" . $role;
+    }
+
+    switch($workflow_state->name) {
+      case "(sponsor_editing)":
+        if(!in_array("sponsor", $user->roles)) {
+          $form['#after_build'][] = '_oma_workflow_extension_after_build';
+        }
+      break;
+      case "(prospective_member_editing)":
+        if(!in_array("prospective_member", $user->roles)) {
+          $form['#after_build'][] = '_oma_workflow_extension_after_build';
+        }
+      break;
+      case "(sponsor_review)":
+      case "(premier_operations_review)":
+      case "(accepted)":
+      case "(rejected)":
+        $form['#after_build'][] = '_oma_workflow_extension_after_build';
+      break;
+    }
+  }
+
+
+
+}
+
+
+/**
+ * Custom validation callback handler.  Checks to ensure that an applicant exists, if not, it flags a form error.
+ */
+function oma_workflow_extension_form_workflow_transition_validate(&$form, &$form_state) {
+    $nid = $form_state['values']['master_nid'];
+    if($nid) {
+      $applicants = _oma_workflow_extension_sort_applicants($nid);
+      if(!isset($applicants['applicants'])) {
+        form_set_error('oma_workflow_extension', t('Please add at least one applicant first.'));
+      }      
+    }
+}
+
+
+/**
+ * Custom after_build callback handler.
+ */
+function _oma_workflow_extension_after_build($form, &$form_state) {
+  foreach($form as $key=>$obj) {
+    if(strpos($key, 'field_') !== false) {
+      _oma_workflow_extension_fix_disabled($form[$key]);
+    }
+  }
+  return $form;
+}
+
+
+/**
+ * Recursively set the disabled attribute of a CCK field
+ * and all its dependent FAPI elements.
+ */
+function _oma_workflow_extension_fix_disabled(&$elements) {
+  foreach (element_children($elements) as $key) {
+    if (isset($elements[$key]) && $elements[$key]) {
+      // Recurse through all children elements.
+      _oma_workflow_extension_fix_disabled($elements[$key]);
+    }
+  }
+
+  if (!isset($elements['#attributes'])) {
+    $elements['#attributes'] = array();
+  }
+  $elements['#attributes']['disabled'] = 'disabled';
+}
+
+?>

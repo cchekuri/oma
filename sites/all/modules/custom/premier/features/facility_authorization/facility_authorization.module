@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Facility Authorization feature.
+ */
+
+include_once 'facility_authorization.features.inc';

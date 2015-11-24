@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Member Classification feature.
+ */
+
+include_once 'member_classification.features.inc';

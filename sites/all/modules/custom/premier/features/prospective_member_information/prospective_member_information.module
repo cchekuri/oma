@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Prospective Member Information feature.
+ */
+
+include_once 'prospective_member_information.features.inc';

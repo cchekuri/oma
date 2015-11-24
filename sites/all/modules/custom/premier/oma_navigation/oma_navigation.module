@@ -1,0 +1,700 @@
+<?php
+
+/** 
+ * Implements hook_form().
+ *
+ * Creates a form as a pre-cursor to child sites to ask if the applicant has additional sites. 
+ */
+function oma_navigation_additonal_sites_form($form, &$form_state) {
+
+  drupal_add_js(drupal_get_path('module', 'oma_navigation') . '/js/child_sites.js');
+
+  $master_nid = arg(3);
+  $view_type = arg(2);
+
+  $links = _oma_navigation_get_links(str_replace('-', '_', $view_type), $master_nid);
+
+  $form = array();
+
+  $additional_locations_answer = variable_get('additional_locations_' . $master_nid);
+
+  $form['child_sites']['container_nid'] = array(
+     '#type' => 'hidden',
+     '#default_value' => $master_nid,
+  );
+
+  $form['child_sites']['next_link'] = array(
+     '#type' => 'hidden',
+     '#default_value' => $links['next_link'],
+  );
+
+  $form['child_sites']['additional_locations'] = array(
+    '#type' => 'radios',
+    '#title' => t('Do you have any additional locations that you own, lease, or manage or any ship to locations that you would like to submit?'),
+    '#options' => array(
+      t('No'),
+      t('Yes'), 
+    ),
+    '#default_value' => intval($additional_locations_answer),
+  );
+
+  $form['#prefix'] = '<div class="alert alert-block alert-success additional-sites-skip">You may skip this section.</div>'; 
+
+  if($links['previous_link'] !== '')
+    $form['actions']['previous']['#markup'] = l(t('Previous'), $links['previous_link'], array('attributes' => array('class' => array('btn btn-default nav-button-previous'))));
+
+
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Next',
+  );
+
+
+  return $form;
+}
+
+
+
+/** 
+ * Implements hook_feeds_presave().
+ *
+ * Populates the master node application nid on a child site upload
+ */
+function oma_navigation_feeds_presave(FeedsSource $source, $entity, $item) {
+  
+  $container_nid = &drupal_static(__FUNCTION__);
+  if (!isset($container_nid)) {
+    if ($cache = cache_get('oma_navigation_container_nid')) {
+      $container_nid = $cache->data;
+    }
+  }
+
+  if (isset($container_nid)) {
+    if ($entity->type == 'child_site') {
+      $entity->field_master_application_node_id[LANGUAGE_NONE][0]['nid'] = $container_nid;
+    }
+  }
+
+}
+
+
+
+/** 
+ * Implements hook_form_submit().
+ *
+ * Submit handler for additional-sites question form. 
+ */
+function oma_navigation_additonal_sites_form_submit($form, &$form_state) {
+
+  $additional_locations_answer = $form_state['values']['additional_locations'];
+  variable_set('additional_locations_' . $form_state['values']['container_nid'], $additional_locations_answer);
+
+  drupal_goto($form_state['values']['next_link']);
+
+}
+
+/** 
+ * Implements hook_form().
+ *
+ * Creates a form to use in the header for the bulk child site uploader. 
+ */
+function oma_navigation_additonal_sites_authority_control_form($form, &$form_state) {
+
+  drupal_add_js(drupal_get_path('module', 'oma_navigation') . '/js/child_sites_step_2.js');
+
+  $form = array();
+
+  $form['child_sites']['has_authority'] = array(
+    '#type' => 'radios',
+    '#title' => t('Do you have legal authority to sign and bind the additional site to contracts, including the terms of this membership application?'),
+    '#options' => array(
+      t('No'),
+      t('Yes'), 
+    ),
+  );
+
+  $form['child_sites']['has_control'] = array(
+    '#type' => 'radios',
+    '#title' => t('Do you have control over all supply chain and purchased services for the additional site?'),
+    '#options' => array(
+      t('No'),
+      t('Yes'), 
+    ),
+  );
+
+  $form['#suffix'] = '<div id="alert_additional_sites_warning" class="alert alert-block alert-danger">A separate application will have to be submitted for any additional site that you do not have the legal authority or supply and purchasing control over.</div>';
+
+  return $form;
+}
+
+
+
+
+/**
+ * Implements hook_menu().
+ * 
+ * Adds a callback page for kickstarting the application process
+ */
+function oma_navigation_menu() {
+  $items['application/continuum-of-care/create'] = array(
+    'title' => 'Create our container',
+    'page callback' => 'oma_navigation_create_continuum_of_care',
+    'access arguments' => array('access content'),
+  );
+
+  $items['application/continuum-of-care/additional-sites/%'] = array(
+    'title' => 'Additional Sites',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('oma_navigation_additonal_sites_form'),
+    'access callback' => TRUE
+  );
+
+  return $items;
+}
+
+
+/**
+ * Implements hook_menu_alter().
+ * 
+ * These will handle the renames for the pages
+ */
+function oma_navigation_menu_alter(&$items) {
+/*
+  $items['application/continuum-of-care/sponsor-information'] = $items['node/add/sponsor-information'];
+  $items['application/continuum-of-care/member-information'] = $items['node/add/member-information'];
+  $items['application/continuum-of-care/membership-classification'] = $items['node/add/membership-classification'];
+
+  unset($items['node/add/sponsor-information']);
+  unset($items['node/add/member-information']);
+  unset($items['node/add/membership-classification']); 
+*/
+}
+
+
+/**
+ * Custom callback function.
+ * 
+ * Creates continuum of care container node then redirects to sponsor information, passing through the nid.
+ */
+function oma_navigation_create_continuum_of_care() {
+  global $user;
+
+  $values = array(
+    'type' => 'continuum_of_care',
+    'uid' => $user->uid,
+    'status' => 0,
+    'comment' => 0,
+    'promote' => 0,
+  );
+  $entity = entity_create('node', $values);
+  $ewrapper = entity_metadata_wrapper('node', $entity);
+  $ewrapper->save();
+  $container_nid = $ewrapper->nid->value();
+  $ewrapper->title->set('Application ' . $container_nid);
+  $ewrapper->save();
+
+
+  // create the sectional nodes
+  $values = array(
+    'type' => 'sponsor_information',
+    'uid' => $user->uid,
+    'status' => 0,
+    'comment' => 0,
+    'promote' => 0,
+  );
+  $entity = entity_create('node', $values);
+  $ewrapper = entity_metadata_wrapper('node', $entity);
+  $ewrapper->title->set('Application ' . $container_nid . ': Sponsor Information');
+  $ewrapper->field_master_application_node_id->set($container_nid);
+  $ewrapper->save();
+  $sponsor_nid = $ewrapper->nid->value();
+
+  $values = array(
+    'type' => 'member_information',
+    'uid' => $user->uid,
+    'status' => 0,
+    'comment' => 0,
+    'promote' => 0,
+  );
+  $entity = entity_create('node', $values);
+  $ewrapper = entity_metadata_wrapper('node', $entity);
+  $ewrapper->title->set('Application ' . $container_nid . ': Member Information');
+  $ewrapper->field_master_application_node_id->set($container_nid);
+  $ewrapper->save();
+
+  $values = array(
+    'type' => 'membership_classification',
+    'uid' => $user->uid,
+    'status' => 0,
+    'comment' => 0,
+    'promote' => 0,
+  );
+  $entity = entity_create('node', $values);
+  $ewrapper = entity_metadata_wrapper('node', $entity);
+  $ewrapper->field_master_application_node_id->set($container_nid);
+  $ewrapper->title->set('Application ' . $container_nid . ': Member Classification');
+  $ewrapper->save();
+
+  $values = array(
+    'type' => 'facility_authorization',
+    'uid' => $user->uid,
+    'status' => 0,
+    'comment' => 0,
+    'promote' => 0,
+  );
+  $entity = entity_create('node', $values);
+  $ewrapper = entity_metadata_wrapper('node', $entity);
+  $ewrapper->field_master_application_node_id->set($container_nid);
+  $ewrapper->title->set('Application ' . $container_nid . ': Facility Authorization');
+  $ewrapper->save();
+
+
+  $values = array(
+    'type' => 'contact_profile',
+    'uid' => $user->uid,
+    'status' => 0,
+    'comment' => 0,
+    'promote' => 0,
+  );
+  $entity = entity_create('node', $values);
+  $ewrapper = entity_metadata_wrapper('node', $entity);
+  $ewrapper->field_master_application_node_id->set($container_nid);
+  $ewrapper->title->set('Application ' . $container_nid . ': Contact Profile');
+  $ewrapper->save();
+
+
+  // Don't create pharmacy and child sites as we have a view to manage those.
+
+  // Redirect to our new sponsor information node
+  drupal_goto('node/' . $sponsor_nid . '/edit');
+
+  return "OK";
+
+}
+
+
+/**
+ * Implementation of hook_node_delete.
+ * 
+ * Calls the cleanup function after a continuum of care node is deleted.
+ */
+function oma_navigation_node_delete($node) {
+
+  if($node->type == 'continuum_of_care') {
+    oma_navigation_delete_continuum_of_care($node->nid);
+  }
+}
+
+
+/**
+ * Custom callback function.
+ * 
+ * Cleans up after a continuum of care container node is deleted.
+ */
+function oma_navigation_delete_continuum_of_care($nid) {
+
+  $nids = _oma_navigation_get_related_nids($nid);
+  node_delete_multiple($nids);
+
+  return "OK";
+
+}
+
+
+
+function oma_navigation_page_alter(&$page){
+  global $user;
+
+  $is_front_page = drupal_is_front_page();
+
+  if($is_front_page) {
+
+    $redirect = "";
+
+    // Sponsor & Premier Ops should always go to their respective dashboards
+    if (in_array('sponsor', $user->roles)) {
+      $redirect = "view/applications";
+    }
+    if (in_array('premier operations', $user->roles)) {
+      $redirect = "view/applications";
+    }
+    if (in_array('prospective_member', $user->roles)) {
+      $user_nodes = oma_navigation_get_my_nodes('continuum_of_care');
+      $num_user_nodes = count($user_nodes);
+
+      switch($num_user_nodes) {
+        case 0:
+          break;
+        case 1: 
+          $container_nid = $user_nodes[0]->nid;
+          $redirect = 'node/'.$container_nid;
+          break;
+        default: 
+          $redirect = 'view/applications';
+          break;
+      }
+    }
+
+    if(!empty($redirect))
+      drupal_goto($redirect);    
+  }
+}
+
+
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ * 
+ * Makes our master container node reference field read only.
+ * Handles the next and previous links.
+ */
+function oma_navigation_form_alter(&$form, &$form_state, $form_id) {
+
+  oma_navigation_get_my_nodes('continuum_of_care');
+
+  switch($form_id) {
+    case 'sponsor_information_node_form':
+    case 'member_information_node_form':
+    case 'membership_classification_node_form':
+    case 'facility_authorization_node_form':
+    case 'contact_profile_node_form':
+
+//      array_unshift($form['actions']['submit']['#submit'], 'oma_navigation_form_extra_submit');
+      $form['actions']['submit']['#access'] = false;
+
+      $links = oma_navigation_get_form_links($form);
+
+      if(array_key_exists('previous_link', $links)) {
+        if(!empty($links['previous_link'])) {
+          $form['previous_link'] = array(
+             '#type' => 'hidden',
+             '#default_value' => $links['previous_link'],
+          );
+
+          $form['actions']['previous'] = $form['actions']['submit'];
+          $form['actions']['previous']['#value'] = t('Previous');
+          $form['actions']['previous']['#submit'][] = 'oma_navigation_form_extra_previous';
+          $form['actions']['previous']['#weight'] = 999;
+          $form['actions']['previous']['#access'] = true;
+        }
+      }
+
+
+      if(array_key_exists('next_link', $links)) {
+        if(!empty($links['next_link'])) {
+          $form['next_link'] = array(
+             '#type' => 'hidden',
+             '#default_value' => $links['next_link'],
+          );
+          $form['actions']['next'] = $form['actions']['submit'];
+          $form['actions']['next']['#value'] = t('Next');
+          $form['actions']['next']['#submit'][] = 'oma_navigation_form_extra_next';
+          $form['actions']['next']['#weight'] = 1000;
+          $form['actions']['next']['#access'] = true;
+
+        }
+      }
+
+      $form['#after_build'][] = 'oma_navigation_remove_required';
+
+//      $form['actions']['submit']['#access'] = false;
+      break;
+  }
+  
+
+  	if($form_id=='child_site_node_form'){
+	$form['cancel_link'] = array(
+             '#type' => 'hidden',
+             '#default_value' => $links['cancel_link'],
+          );
+	$form['actions']['cancel'] = array(
+    	'#type' => 'submit',
+    	'#value' => 'Cancel',
+    	'#weight' => 999,
+    	'#submit' => array('oma_navigation_child_site_node_form_cancel','node_form_submit'),
+    	'#limit_validation_errors' => array(),
+    	);
+	}
+
+}
+
+function oma_navigation_remove_required($element, &$form_state, $depth=0) {
+  if ( $depth > 8 ) return $element; // put a limit on recursion
+  if ( !empty($element['#required']) ) $element['#required'] = FALSE;
+  // only iterate over children for likely elements
+  if ( empty($element['#type']) || !in_array($element['#type'], array('radios','checkboxes')) ) {
+    foreach ( element_children($element) as $name ) {
+      $element[$name] = oma_navigation_remove_required($element[$name], $form_state, $depth+1);
+    }
+  }
+  return $element;
+}
+
+function oma_navigation_form_extra_previous($form, &$form_state) {
+  drupal_goto($form_state['values']['previous_link']);
+}
+
+function oma_navigation_form_extra_next($form, &$form_state) {
+  drupal_goto($form_state['values']['next_link']);
+}
+
+/* cacel button function used to goback to previous page of child sites form */
+ function oma_navigation_child_site_node_form_cancel($form, &$form_state) {
+  	$master_nid = $form['field_master_application_node_id'][$form['language']['#value']][0]['nid']['#default_value'];
+  	$master_node = node_load($master_nid);
+	$route = str_replace('_', '-', $master_node->type);
+	$link = 'application/' . $route .'/exhibit-d/' . $master_nid;
+	drupal_goto($link);
+  }
+
+/**
+ * Helper Function.
+ * Returns an array with the links of the previous and next buttons
+ */
+function oma_navigation_get_form_links($form) {
+
+  $master_nid = $form['field_master_application_node_id'][$form['language']['#value']][0]['nid']['#default_value'];
+
+  // If it's a number then continue, otherwise we'll redirect to the site front page.
+  $links = _oma_navigation_get_links($form['type']['#value'], $master_nid);
+  return $links;
+
+}
+
+
+function _oma_navigation_get_links($machine_name, $master_nid, $skip = false) {
+
+  $nids = _oma_navigation_get_related_nids($master_nid);
+  $master_node = node_load($master_nid);
+  $workflow_mode = oma_navigation_get_workflow_mode($master_node);
+  $route = str_replace('_', '-', $master_node->type);
+  if($workflow_mode == 'edit')
+    $edit = '/edit';
+  else
+    $edit = '';
+
+  switch($machine_name) {
+    case "sponsor_information":
+      $link['previous_link'] = '';
+      $link['next_link'] = 'node/'. $nids['member_information'] . $edit;
+      break;
+    case "member_information":
+      $link['previous_link'] = 'node/'. $nids['sponsor_information'] . $edit;
+      $link['next_link'] = 'node/'. $nids['membership_classification'] . $edit;
+      break;
+    case "membership_classification":      
+      $link['previous_link'] = 'node/'. $nids['member_information'] . $edit;
+      $link['next_link'] = 'node/'. $nids['facility_authorization'] . $edit;
+      break;
+    case "facility_authorization":      
+      $link['previous_link'] = 'node/'. $nids['membership_classification'] . $edit;
+      $link['next_link'] = 'application/' . $route . '/exhibit-b/' . $master_nid;
+      break;
+    case "exhibit_b":
+      $link['previous_link'] = 'node/'. $nids['membership_classification'] . $edit;
+      $link['next_link'] = 'application/' . $route .'/additional-sites/' . $master_nid;
+      break;
+    case "additional_sites":
+      $link['previous_link'] = 'application/' . $route .'/exhibit-b/' . $master_nid;
+      $link['next_link'] = 'node/'. $nids['contact_profile'] . $edit;
+//      $link['next_link'] = 'application/' . $route . '/upload-additional-sites/' . $master_nid;
+      if($skip)
+        $link['next_link'] = 'application/' . $route .'/exhibit-d/' . $master_nid;
+  
+      break;
+    case "exhibit_d":
+      $link['previous_link'] = 'application/' . $route .'/additional-sites/' . $master_nid;
+      $link['next_link'] = 'node/'. $nids['contact_profile'] . $edit;
+      break;
+    case "contact_profile":
+      $link['previous_link'] = 'application/' . $route .'/additional-sites/' . $master_nid;
+      $link['next_link'] = 'node/' . $master_nid . '/overview';
+      break;
+
+  }    
+
+  return $link;
+
+}
+
+
+/**
+ * Helper Function.
+ * Renders the previous and next buttons on a node view page
+ */
+function oma_navigation_get_node_links($node) {
+
+  $master_nid = $node->field_master_application_node_id[$node->language][0]['nid'];
+  $links = _oma_navigation_get_links($node->type, $master_nid);
+
+  if($links['previous_link'] !== '')
+    print l(t('Previous'), $links['previous_link'], array('attributes' => array('class' => array('btn btn-default nav-button-previous'))));
+
+  if($links['next_link'] !== '')
+    print l(t('Next'), $links['next_link'], array('attributes' => array('class' => array('btn btn-default nav-button-next'))));
+
+};
+
+
+/**
+ * Helper Function.
+ * Renders the previous and next buttons on a view page
+ */
+function oma_navigation_get_view_links() {
+
+  $master_nid = arg(3);
+  $view_type = arg(2);
+
+  $links = _oma_navigation_get_links(str_replace('-', '_', $view_type), $master_nid);
+
+  if($links['previous_link'] !== '')
+    print l(t('Previous'), $links['previous_link'], array('attributes' => array('class' => array('btn btn-default nav-button-previous'))));
+
+  if($links['next_link'] !== '')
+    print l(t('Next'), $links['next_link'], array('attributes' => array('class' => array('btn btn-default nav-button-next'))));
+
+};
+
+
+/**
+ * Helper Function.
+ * Returns the workflow mode (edit | review | premier_only | locked) of the container node
+ */
+function oma_navigation_get_workflow_mode($master_node) {
+
+  $workflow = workflow_load('continuum_of_care_workflow');
+  $sid = workflow_node_current_state($master_node);
+  $workflow_state = $workflow->states[$sid];
+
+  if($workflow_state->name == '(sponsor_editing)' || $workflow_state->name == '(prospective_member_editing)') {
+      $workflow_mode = "edit";
+  }
+  else if($workflow_state->name == '(sponsor_review)' || $workflow_state->name == '(signing_ceremony)') {
+      $workflow_mode = "review";
+  }
+  else if($workflow_state->name == '(premier_operations_review)') {
+      $workflow_mode = "premier_only";
+  }
+  else if($workflow_state == '(accepted)' || $workflow_state == '(rejected)') {
+      $workflow_mode = "locked";
+  }
+  else {
+   $workflow_mode = "unavailable"; 
+  }
+
+  return $workflow_mode;
+
+}
+
+
+/**
+ * Helper Function.
+ * Gets all related node ids to a container id
+ */
+function _oma_navigation_get_related_nids($container_nid) {
+
+  //build db query
+  $result = db_select('field_data_field_master_application_node_id', 'f')
+  ->fields('f')
+  ->condition('field_master_application_node_id_nid', $container_nid)
+  ->execute();
+
+  $nids = array();
+
+  //fetch each node from database
+  foreach ($result as $i=>$record) {
+    $node = node_load($record->entity_id);
+    $nids[$node->type] = $node->nid;
+  }
+
+  return $nids;
+
+}
+
+/**
+ * Implements hook_node_view().
+ * Loads our custom JS file to handle the user routing when a node is being viewed and is of type basic page with the promote to front  * page option checked.
+ */
+function oma_navigation_node_view($node, $view_mode = 'full', $langcode = NULL) {
+  if($node->type == 'basic_page' && $node->promote == 1) {
+    drupal_add_js(drupal_get_path('module', 'oma_navigation') . '/js/user_routing.js');
+  }
+}
+
+
+/**
+ * Renders our step counter
+ */
+function oma_navigation_render_steps($node = null, $view = null) {
+
+  $steps = array(
+    '1' => false,
+    '2' => false,
+    '3' => false,
+    '4' => false,
+    '5' => false,
+    );
+
+  if($node) {
+    switch($node->type) {
+      case 'sponsor_information':
+        $steps[1] = true;
+        break;
+      case 'member_information':
+        $steps[2] = true;
+        break;
+      case 'membership_classification':
+        $steps[3] = true;
+        break;
+    }      
+  }
+
+  if($view) {
+    switch($view->name) {
+      case 'exhibit_b':
+        $steps[4] = true;
+        break;
+      case 'exhibit_d':
+        $steps[5] = true;
+        break;
+    }
+  }
+
+  $counter = "<ul class='step-counter'>";
+
+  foreach($steps as $key=>$step) {
+    if($step)
+      $counter .= "<li class='active'>" . $key . '</li>';
+    else 
+      $counter .= "<li>" . $key . '</li>';        
+  }
+
+  $counter .= "</ul>";
+
+  print($counter);
+
+}
+
+
+function oma_navigation_get_my_nodes($type) {
+
+  global $user;
+
+  $query = db_select('node_access','na');
+  $query->leftJoin('node', 'n', 'na.nid = n.nid');
+  $query->fields('na',array('nid', 'gid','realm','grant_view','grant_update','grant_delete'));
+  $query->fields('n', array('type'));
+  $query->condition('na.gid',$user->uid);
+  $query->condition('n.type',$type);
+
+  $my_nodes = $query
+    ->execute()
+    ->fetchAll();
+
+  return $my_nodes;
+
+}
+
+
+
+?>

@@ -1,0 +1,212 @@
+/**
+ * This file should get overwritten if Method 1 is used. If Method 2 is chosen,
+ * remove this comment and start adding your styles to this file.
+ */
+.navbar-default {
+  background-color: inherit;
+  border: 0 none;
+}
+
+form.node-continuum_of_care_application-form.view-only > div > button {
+  margin-top: 10px;
+}
+
+body.node-type-continuum-of-care-application h1.page-header em { display: none; }
+
+
+/* Application Section Link Styling */
+.section-links > a {
+  width: 48%;
+  margin: 20px 10px 0 0;
+  border: 2px solid;
+  display: inline-block;
+  height: 90px;
+  font-size: 18px;
+  padding-top: 32px;
+  text-align: center;    
+  /*opacity: 0.25;*/
+  opacity: 0.8;
+  transition: opacity .25s ease-in-out;
+  -moz-transition: opacity .25s ease-in-out;
+  -webkit-transition: opacity .25s ease-in-out;
+}
+
+/* Application Section Link Styling */
+.section-links > a.disabled {
+  border: 2px solid;
+  color: gray;
+  opacity: 0.25;
+  transition: opacity 0s ease-in-out;
+  -moz-transition: opacity 0s ease-in-out;
+  -webkit-transition: opacity 0s ease-in-out;
+}
+
+
+.section-links > a:hover {
+  text-decoration: none;
+  opacity: 0.8;
+}
+
+/*.section-links > a.completed{
+  text-decoration: none;
+  opacity: 0.8;
+}*/
+
+.section-links > a.disabled {
+  opacity: 0.25;
+}
+
+
+.contract-links {
+  float: right;
+  margin-top: 50px;
+}
+
+
+/* Hide workflow state label */
+body.node-type-master-app-coc form.node-continuum_of_care_application-form .field-name-field-workflow-state .field-label,
+body.node-type-master-app-coc form.node-continuum_of_care_application-form .field-name-field-workflow-state .field-items {
+  display: none;
+}
+
+body.page-import-child-sites-import #edit-source-status {
+  display: none;
+}
+
+.row > .application-route {
+ width: 48%;
+ display: inline-block;
+ margin-bottom: 10px;
+ padding: 10px;
+  border: 1px solid #fff;
+}
+
+.row > .application-route:hover,
+.row > .application-route.selected {
+  border: 1px solid #000;
+}
+
+.row > .application-route.route-disabled:hover {
+  border: 1px solid #ddd;
+}
+
+.row > .application-route:hover {
+  cursor: pointer;
+}
+
+.row > .application-route h3 {
+  margin-top: 0px;
+}
+
+
+input[type=radio] {
+  margin-left: 10px;
+}
+
+a.btn-primary:hover { 
+  cursor: pointer;
+}
+
+
+/* User routing */
+.row > .application-route {
+  border: thin solid #ddd;
+    height: 200px;
+    float: left;
+    margin: 5px;
+}
+
+.row > .application-route > h3 {
+    background-color: #666;
+    background-image: url(../images/bg-route-headers.jpg);
+    background-position: left top;
+    background-repeat: no-repeat;
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 10px 10px;
+    margin: 0;
+}
+
+.row > .application-route.orange > h3 {
+    background-position: left top;
+}
+
+.row > .application-route.purple > h3 {
+  background-position: left -60px;
+}
+
+.row > .application-route.gray > h3 {
+  background-position: left -120px;
+}
+
+.row > .application-route.blue > h3 {
+  background-position: left -180px;
+}
+
+
+.row > .application-route.route-disabled {
+    color: #999;
+}
+
+.requirements { 
+  margin-bottom: 20px;
+}
+
+/*body.page-node-edit .bootstrap-tabs-processed,
+.form-item-field-master-application-node-id-und-0-nid { display: none; }*/
+
+ul.step-counter {
+  float: right;
+}
+
+ul.step-counter li {
+  list-style: none;
+  display: inline;
+  margin-right: 5px;
+}
+ul.step-counter li.active {
+  color: red;
+}
+
+.edit-field {
+ float: left;
+  width: 255px;
+  text-align: right;
+  margin: 5px 10px;
+  display: inline
+}
+
+.delete-field {
+   float: left;
+  text-align: left;
+  margin: 5px 10px;
+  display: inline
+}
+
+.field-content { display: inline ; }
+
+.node-unpublished {
+    background-color: #fff !important;
+}
+
+.block-oma-workflow-extension button {
+  margin: 0 auto 10px auto;
+}
+
+.node-form .form-item-title,
+.node-form .form-item-field-master-application-node-id-und-0-nid {
+  display: none;
+}
+
+.create-application {
+  margin-top: 10px;
+}
+
+.small {
+  font-size: 75% !important;
+}
+
+.node-member_information-form .field-name-field-prospective-member-email-a {
+  display: none;
+}

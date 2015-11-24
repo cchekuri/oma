@@ -1,0 +1,31 @@
+diff --git a/CHANGELOG.txt b/CHANGELOG.txt
+index 0657092..a3ced9e 100644
+--- a/CHANGELOG.txt
++++ b/CHANGELOG.txt
+@@ -5,6 +5,7 @@ Nodeaccess 7.x-1.5
+ ===================
+ Issue #2228713 by willzyx: Unpublished nodes are visible.
+ Issue #2140819 by justdave: "Preserve hidden grants" setting ignored.
++Issue #2364463 by nathanweeks, vlad.pavlovic: Incorrect SQL list quoting causes PostgreSQL error
+ 
+ Nodeaccess 7.x-1.4
+ ===================
+diff --git a/nodeaccess.module b/nodeaccess.module
+index f925ed1..e921454 100644
+--- a/nodeaccess.module
++++ b/nodeaccess.module
+@@ -621,11 +621,10 @@ function nodeaccess_grants_form($form, &$form_state, $node) {
+       $sql = "SELECT uid, name FROM {users} WHERE name LIKE :name";
+       $name = preg_replace('!\*+!', '%', $form_values['keys']);
+       $params[':name'] = $name;
+-      $users = '';
+-      if (isset($form_values['uid']) && is_array($form_values['uid'])) {
++
++      if (isset($form_values['uid']) && count($form_values['uid'])) {
+         $sql .= ' AND uid NOT IN (:uid)';
+-        $users = implode(',', array_keys($form_values['uid']));
+-        $params[':uid'] = $users;
++        $params[':uid'] = array_keys($form_values['uid']);
+       }
+ 
+       $result = db_query($sql, $params);

@@ -1,0 +1,13 @@
+<?php
+
+/**
+ * Implements hook_feeds_preserve().
+ */
+function oma_feeds_extension_feeds_presave(FeedsSource $source, $entity, $item) {
+  if ($entity->type == 'child_site') {
+    global $user;
+    $entity->uid = $user->uid;
+  }
+}
+
+?>

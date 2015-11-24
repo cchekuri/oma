@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Contact Profile feature.
+ */
+
+include_once 'contact_profile.features.inc';

@@ -1,0 +1,10 @@
+name = OMA Workflow Extension
+description = "Custom override for membership signup forms"
+core = 7.x
+package = Premier
+
+dependencies[] = devel
+dependencies[] = nodeaccess
+
+files[] = oma_workflow_extension.module
+stylesheets[all][] = oma_workflow_extension.css

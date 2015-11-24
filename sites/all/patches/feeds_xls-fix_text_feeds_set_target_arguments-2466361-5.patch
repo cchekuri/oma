@@ -1,0 +1,20 @@
+diff --git a/feeds_xls.module b/feeds_xls.module
+index 2a2bb05..5f2fb26 100644
+--- a/feeds_xls.module
++++ b/feeds_xls.module
+@@ -225,7 +225,7 @@ function feeds_xls_feeds_set_target_list_text($source, $entity, $target, $value)
+       unset($value[$k]);
+     }
+   }
+-  text_feeds_set_target($source, $entity, $target, $value);
++  text_feeds_set_target($source, $entity, $target, $value, array());
+ }
+ 
+ /**
+@@ -264,4 +264,4 @@ function feeds_xls_admin_paths(){
+   return array(
+     'import/*/xlstemplate' => FALSE
+   );
+-}
+\ No newline at end of file
++}
